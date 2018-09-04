@@ -6,6 +6,7 @@
 #imports
 from sys import argv
 import re
+import pprint
 import time
 import wordPatterns
 import simpleSubCipher
@@ -35,17 +36,20 @@ englishLetterFreq = {' ': 30.0,'E': 12.70, 'T': 9.06, 'A': 8.17, 'O': 7.51, 'I':
 solvedword = 'keloirkobarosg'
 #loirkobarots
 def main():
-    solved = False
+    pp = pprint.PrettyPrinter(indent=4)
     inputtext = open("inputs/outfile.txt")
     message = inputtext.read()
+
+    #give the program a head start with an initial decryption using message frequency
     messageFrequency = improvedLetterFreq(message)
     initialSolution = transposeAlphabets(messageFrequency)
     message = translateMessage(initialSolution, message)
 
-    for word in message.split():
-        nextKey = createSolutionSet(word)
-        newKey = intersect(initialSolution, nextKey)
-        print(newKey)
+
+    hackit(message)
+
+
+
 
 
 
@@ -64,14 +68,13 @@ def wordPattern(word):
                 index += 1
             else:
                 pattern += str(letterMap[upper]) + "."
-
+        return pattern[:-1]
     #unelegant way to remove the trailing "."
-    return pattern[:-1]
+
 
 def createSolutionSet(cipherword):
     blankMap = alphabetMap()
     pattern = wordPattern(cipherword)
-    print(pattern)
     potentialWords = wordPatterns.allPatterns[pattern]
     for word in potentialWords:
         index = 0
@@ -83,15 +86,26 @@ def createSolutionSet(cipherword):
     return blankMap
 
 
-def removeSolved(currentKey, prevKey):
-    intersectedSet = intersect(currentKey, prevKey)
+def removeSolved(currentKey):
+    loopAgain = True
+    while loopAgain:
+        loopAgain = False
+        solvedLetters = []
+        for letter in ALPHABET:
+            letter=letter.upper()
+            print(currentKey[letter])
+            if len(currentKey[letter] == 1):
+                solvedLetters.append(currentKey[letter][0])
 
-    solvedLetters = {}
-    for letter in ALPHABET:
-        if len(currentKey[letter] < 2):
-            solvedLetters[letter.upper()] = currentKey[letter.upper()][0]
+        for letter in ALPHABET:
+            letter = letter.upper()
+            for s in solvedLetters:
+                if len(currentKey[letter]) != 1 and s in currentKey[letter]:
+                    currentKey[letter].remove(s)
+                    if len(currentKey[letter] == 1):
+                        loopAgain = True
 
-    print(solvedLetters)
+    return currentKey
 
 def intersect(keyA, keyB):
     intersectedDict = alphabetMap()
@@ -108,29 +122,10 @@ def intersect(keyA, keyB):
 
     return intersectedDict
 
-
-
-
-
-
-def getLetterFrequency(message):
-    start_time = time.time()
-    blankMap = freqMap()
-    for letter in message:
-        if letter.upper() in ALPHABET:
-            blankMap[letter.upper()] = ((blankMap[letter.upper()] + 1))
-
-
-    for key in blankMap:
-        blankMap[key] = ((blankMap[key] / len(message)))
-
-    blankMap = sorted(blankMap, key=blankMap.get, reverse=True)
-    return blankMap
-
 def improvedLetterFreq(message):
-    start_time = time.time()
     tempDict = {}
     for letter in message:
+        print(letter)
         key = letter.upper()
         if key in ALPHABET:
             try:
@@ -142,7 +137,6 @@ def improvedLetterFreq(message):
         tempDict[key] = (tempDict[key] / len(message))
 
 
-    print("EXECUTION TIME: " + str((time.time() - start_time)))
     return sorted(tempDict, key=tempDict.get, reverse=True)
 
 
@@ -164,12 +158,11 @@ def alphabetMap():
 
 def transposeAlphabets(alphabet):
     counter = 0
+    map = alphabetMap()
     for key in englishLetterFreq:
-        goalMap[key].append(alphabet[counter])
+        map[key].append(alphabet[counter])
         counter += 1
-
-
-    return goalMap
+    return map
     #return {v:k for k,v in goalMap.items()}
 
 
@@ -180,6 +173,34 @@ def translateMessage(key, ciphertext):
 
     print(generatedKey)
     return simpleSubCipher.decryptMessage(generatedKey, ciphertext)
+
+def hackit(message):
+    intersectMap = alphabetMap()
+    for word in message.split():
+        map = alphabetMap()
+        pattern = wordPattern(word)
+        try:
+            wordList = wordPatterns.allPatterns[pattern]
+        except KeyError:
+            wordList = None
+
+        if wordList is not None:
+            for decryption in wordList:
+                print("Potential: " + decryption)
+                index = 0
+                for letter in decryption:
+                    try:
+                        if letter not in map[word[index].upper()]:
+                            map[word[index].upper()].append(letter)
+                        index += 1
+                    except KeyError:
+                        index +=1
+
+        intersectMap = intersect(intersectMap, map)
+        intersectMap = removeSolved(intersectMap)
+
+
+
 
 
 if __name__ == '__main__':
